@@ -27,6 +27,14 @@ export interface IFormItemProps extends PolymorphicProps {
   children?: React.ReactNode
 }
 
+export interface IFormItemBaseFormProps extends IFormItemProps {
+  labelProps?: PolymorphicProps
+  controlProps?: PolymorphicProps
+  errorTextProps?: PolymorphicProps
+  addonBefore?: React.ReactNode
+  addonAfter?: React.ReactNode
+}
+
 export interface IFormItemContextValue {
   id: string
   props: IFormItemProps
@@ -38,7 +46,7 @@ export interface IFormItemContextValue {
 const FormItemContext = React.createContext<IFormItemContextValue>(null)
 
 export const useFormItemState = (
-  props: IFormItemProps,
+  props: IFormItemProps
 ): IFormItemContextValue => {
   const reactId = useId()
   const id = props.id ?? `form-item-${reactId}`
@@ -53,7 +61,7 @@ export const useFormItemState = (
       'data-required': props.required ? '' : undefined,
       'data-optional': props.optional ? '' : undefined,
     }),
-    [active, props.disabled, props.invalid, props.required, props.optional],
+    [active, props.disabled, props.invalid, props.required, props.optional]
   )
 
   return {
@@ -198,6 +206,28 @@ export const FormItemErrorText: React.FC<SlotProps> = ({
   )
 }
 
+export const BaseForm: React.FC<IFormItemBaseFormProps> = ({
+  children,
+  labelProps,
+  controlProps,
+  errorTextProps,
+  addonBefore,
+  addonAfter,
+  ...props
+}) => {
+  return (
+    <FormItemRoot {...props}>
+      <FormItemLabel {...labelProps} />
+      <FormItemControl {...controlProps}>
+        {addonBefore && <span data-slot="addon-before">{addonBefore}</span>}
+        {children}
+        {addonAfter && <span data-slot="addon-after">{addonAfter}</span>}
+      </FormItemControl>
+      <FormItemErrorText {...errorTextProps} />
+    </FormItemRoot>
+  )
+}
+
 export type ComposeFormItem = React.FC<
   React.PropsWithChildren<IFormItemProps>
 > & {
@@ -206,6 +236,7 @@ export type ComposeFormItem = React.FC<
   Label?: typeof FormItemLabel
   Control?: typeof FormItemControl
   ErrorText?: typeof FormItemErrorText
+  BaseForm?: typeof BaseForm
   useContext?: typeof useFormItemContext
 }
 
@@ -215,6 +246,7 @@ export const FormItem: ComposeFormItem = Object.assign(FormItemRoot, {
   Label: FormItemLabel,
   Control: FormItemControl,
   ErrorText: FormItemErrorText,
+  BaseForm,
   useContext: useFormItemContext,
 })
 

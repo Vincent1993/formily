@@ -45,6 +45,7 @@ export default () => {
 - `FormItem.Label`（插槽组件，支持 `as`）
 - `FormItem.Control`（插槽组件，支持 `as`）
 - `FormItem.ErrorText`
+- `FormItem.BaseForm`（预组装布局）
 - `FormItem.useContext()`
 - `useFormItemState()`
 
@@ -60,6 +61,24 @@ export default () => {
 - 多态属性：`as`, `className`, `style`
 
 其它展示性较强的 props 已有意移除，以保证组件聚焦在可组合能力。
+
+### BaseForm（预组装）
+
+如果你想要接近传统 FormItem 的开箱即用效果，可以使用 `FormItem.BaseForm`：
+
+```tsx
+<FormItem.BaseForm
+  label="用户名"
+  required
+  invalid
+  errorText="必填"
+  addonBefore={<span>@</span>}
+>
+  <input />
+</FormItem.BaseForm>
+```
+
+`BaseForm` 内部组合了 `Root + Label + Control + ErrorText`，并继续通过 `data-*` 暴露状态以供外部样式系统使用。
 
 ## Markup Schema 案例
 

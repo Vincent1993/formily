@@ -45,6 +45,7 @@ export default () => {
 - `FormItem.Label` (slot, supports `as`)
 - `FormItem.Control` (slot, supports `as`)
 - `FormItem.ErrorText`
+- `FormItem.BaseForm` (pre-assembled layout)
 - `FormItem.useContext()`
 - `useFormItemState()`
 
@@ -60,6 +61,24 @@ Current `FormItem` keeps only a minimal prop surface for layout semantics:
 - polymorphic props: `as`, `className`, `style`
 
 Other presentation-specific props were intentionally removed to keep the component focused on composition.
+
+### BaseForm (pre-assembled)
+
+If you want behavior close to the traditional assembled FormItem, use `FormItem.BaseForm`:
+
+```tsx
+<FormItem.BaseForm
+  label="Username"
+  required
+  invalid
+  errorText="Required"
+  addonBefore={<span>@</span>}
+>
+  <input />
+</FormItem.BaseForm>
+```
+
+`BaseForm` composes `Root + Label + Control + ErrorText` internally while keeping the same `data-*` hooks for external styling.
 
 ## Markup Schema example
 
