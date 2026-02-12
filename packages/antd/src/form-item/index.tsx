@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useContext, useState } from 'react'
 import cls from 'classnames'
-import { usePrefixCls, pickDataProps } from '../__builtins__'
 import { isVoidField } from '@formily/core'
 import { connect, mapProps } from '@formily/react'
 import { useFormLayout, FormLayoutShallowContext } from '../form-layout'
-import { isElement } from 'react-is'
 import { Tooltip, Popover, ConfigProvider } from 'antd'
 import {
   QuestionCircleOutlined,
@@ -12,6 +10,33 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons'
+
+const usePrefixCls = (
+  tag?: string,
+  props?: {
+    prefixCls?: string
+  }
+) => {
+  if ('ConfigContext' in ConfigProvider) {
+    const { getPrefixCls } = useContext(ConfigProvider.ConfigContext)
+    return getPrefixCls(tag, props?.prefixCls)
+  } else {
+    const prefix = props?.prefixCls ?? 'ant-'
+    return `${prefix}${tag ?? ''}`
+  }
+}
+
+const pickDataProps = (props: any = {}) => {
+  const results = {}
+
+  for (let key in props) {
+    if (key.indexOf('data-') > -1) {
+      results[key] = props[key]
+    }
+  }
+
+  return results
+}
 
 export interface IFormItemProps {
   className?: string
@@ -52,6 +77,21 @@ export interface IFormItemProps {
   bordered?: boolean
 }
 
+export interface IFormItemHeadlessContext {
+  prefixCls: string
+  formLayout: ReturnType<typeof useFormItemLayout>
+  active: boolean
+  setActive: React.Dispatch<React.SetStateAction<boolean>>
+  overflow: boolean
+  labelStyle: React.CSSProperties
+  wrapperStyle: React.CSSProperties
+  enableCol: boolean
+  tooltipNode?: React.ReactNode
+  renderLabelText: () => React.ReactNode
+  renderTooltipIcon: () => React.ReactNode
+  renderLabel: () => React.ReactNode
+}
+
 type ComposeFormItem = React.FC<React.PropsWithChildren<IFormItemProps>> & {
   BaseItem?: React.FC<React.PropsWithChildren<IFormItemProps>>
 }
@@ -59,7 +99,7 @@ type ComposeFormItem = React.FC<React.PropsWithChildren<IFormItemProps>> & {
 const isTooltipProps = (
   tooltip: React.ReactNode | React.ComponentProps<typeof Tooltip>
 ): tooltip is React.ComponentProps<typeof Tooltip> => {
-  return !isElement(tooltip)
+  return !React.isValidElement(tooltip)
 }
 
 const useFormItemLayout = (props: IFormItemProps) => {
@@ -134,10 +174,9 @@ const ICON_MAP = {
   warning: <ExclamationCircleOutlined />,
 }
 
-export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
-  children,
-  ...props
-}) => {
+export const useFormItemHeadless = (
+  props: IFormItemProps
+): IFormItemHeadlessContext => {
   const [active, setActive] = useState(false)
   const formLayout = useFormItemLayout(props)
   const { locale } = useContext(ConfigProvider.ConfigContext)
@@ -147,40 +186,21 @@ export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
   >()
   const {
     label,
-    style,
     layout,
     colon = true,
-    addonBefore,
-    addonAfter,
     asterisk,
     requiredMark = true,
     optionalMarkHidden = false,
-    feedbackStatus,
-    extra,
-    feedbackText,
-    fullness,
-    feedbackLayout,
-    feedbackIcon,
-    enableOutlineFeedback = true,
-    getPopupContainer,
-    inset,
-    bordered = true,
     labelWidth,
     wrapperWidth,
     labelCol,
-    wrapperCol,
-    labelAlign,
-    wrapperAlign = 'left',
-    size,
-    labelWrap,
-    wrapperWrap,
     tooltipLayout,
     tooltip,
     tooltipIcon,
   } = formLayout
   const labelStyle = { ...formLayout.labelStyle }
   const wrapperStyle = { ...formLayout.wrapperStyle }
-  // 固定宽度
+
   let enableCol = false
   if (labelWidth || wrapperWidth) {
     if (labelWidth) {
@@ -191,46 +211,22 @@ export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
       wrapperStyle.width = wrapperWidth === 'auto' ? undefined : wrapperWidth
       wrapperStyle.maxWidth = wrapperWidth === 'auto' ? undefined : wrapperWidth
     }
-    // 栅格模式
   }
-  if (labelCol || wrapperCol) {
+  if (labelCol || formLayout.wrapperCol) {
     if (!labelStyle.width && !wrapperStyle.width && layout !== 'vertical') {
       enableCol = true
     }
   }
 
   const prefixCls = usePrefixCls('formily-item', props)
-  const formatChildren =
-    feedbackLayout === 'popover' ? (
-      <Popover
-        autoAdjustOverflow
-        placement="top"
-        content={
-          <div
-            className={cls({
-              [`${prefixCls}-${feedbackStatus}-help`]: !!feedbackStatus,
-              [`${prefixCls}-help`]: true,
-            })}
-          >
-            {ICON_MAP[feedbackStatus]} {feedbackText}
-          </div>
-        }
-        visible={!!feedbackText}
-        getPopupContainer={getPopupContainer}
-      >
-        {children}
-      </Popover>
+
+  const tooltipNode = tooltip ? (
+    isTooltipProps(tooltip) ? (
+      <Tooltip {...tooltip}></Tooltip>
     ) : (
-      children
+      tooltip
     )
-
-  const gridStyles: React.CSSProperties = {}
-
-  const tooltipNode = isTooltipProps(tooltip) ? (
-    <Tooltip {...tooltip}></Tooltip>
-  ) : (
-    tooltip
-  )
+  ) : undefined
 
   const getOverflowTooltip = () => {
     if (overflow) {
@@ -312,6 +308,82 @@ export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
     )
   }
 
+  return {
+    prefixCls,
+    formLayout,
+    active,
+    setActive,
+    overflow,
+    labelStyle,
+    wrapperStyle,
+    enableCol,
+    tooltipNode,
+    renderLabelText,
+    renderTooltipIcon,
+    renderLabel,
+  }
+}
+
+export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
+  children,
+  ...props
+}) => {
+  const headless = useFormItemHeadless(props)
+  const { formLayout, active, setActive, prefixCls, wrapperStyle, enableCol } =
+    headless
+  const {
+    label,
+    style,
+    layout,
+    addonBefore,
+    addonAfter,
+    feedbackStatus,
+    extra,
+    feedbackText,
+    fullness,
+    feedbackLayout,
+    feedbackIcon,
+    enableOutlineFeedback = true,
+    getPopupContainer,
+    inset,
+    bordered = true,
+    wrapperCol,
+    labelAlign,
+    wrapperAlign = 'left',
+    size,
+    labelWrap,
+    wrapperWrap,
+  } = formLayout
+
+  const childrenNode =
+    typeof children === 'function' ? (children as any)(headless) : children
+
+  const formatChildren =
+    feedbackLayout === 'popover' ? (
+      <Popover
+        autoAdjustOverflow
+        placement="top"
+        content={
+          <div
+            className={cls({
+              [`${prefixCls}-${feedbackStatus}-help`]: !!feedbackStatus,
+              [`${prefixCls}-help`]: true,
+            })}
+          >
+            {ICON_MAP[feedbackStatus]} {feedbackText}
+          </div>
+        }
+        visible={!!feedbackText}
+        getPopupContainer={getPopupContainer}
+      >
+        {childrenNode}
+      </Popover>
+    ) : (
+      childrenNode
+    )
+
+  const gridStyles: React.CSSProperties = {}
+
   return (
     <div
       {...pickDataProps(props)}
@@ -351,7 +423,7 @@ export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
         }
       }}
     >
-      {renderLabel()}
+      {headless.renderLabel()}
       <div
         className={cls({
           [`${prefixCls}-control`]: true,
