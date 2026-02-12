@@ -51,7 +51,7 @@ export interface IFormItemProps {
   requiredMark?: boolean | 'optional'
   children?:
     | React.ReactNode
-    | ((context: IFormItemHeadlessContext) => React.ReactNode)
+    | ((context: IFormItemContextValue) => React.ReactNode)
 }
 
 interface IFormItemResolvedProps extends IFormItemProps {
@@ -66,7 +66,7 @@ interface IFormItemResolvedProps extends IFormItemProps {
   bordered: boolean
 }
 
-export interface IFormItemHeadlessContext {
+export interface IFormItemContextValue {
   props: IFormItemResolvedProps
   active: boolean
   setActive: React.Dispatch<React.SetStateAction<boolean>>
@@ -81,7 +81,7 @@ export interface IFormItemHeadlessContext {
   }) => React.ReactNode
 }
 
-const FormItemContext = React.createContext<IFormItemHeadlessContext>(null)
+const FormItemContext = React.createContext<IFormItemContextValue>(null)
 
 const useOverflow = <
   Container extends HTMLElement,
@@ -122,9 +122,9 @@ const getResolvedProps = (props: IFormItemProps): IFormItemResolvedProps => ({
   bordered: props.bordered ?? true,
 })
 
-export const useFormItemHeadless = (
+export const useFormItemState = (
   props: IFormItemProps
-): IFormItemHeadlessContext => {
+): IFormItemContextValue => {
   const resolvedProps = getResolvedProps(props)
   const [active, setActive] = useState(false)
   const { overflow, containerRef, contentRef } = useOverflow<
@@ -308,14 +308,12 @@ export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
   children,
   ...props
 }) => {
-  const ctx = useFormItemHeadless(props)
+  const ctx = useFormItemState(props)
   const RootTag = props.as || 'div'
 
   const content =
     typeof children === 'function'
-      ? (children as (context: IFormItemHeadlessContext) => React.ReactNode)(
-          ctx
-        )
+      ? (children as (context: IFormItemContextValue) => React.ReactNode)(ctx)
       : children
 
   return (
@@ -387,5 +385,10 @@ export const FormItem: ComposeFormItem = Object.assign(BaseItem, {
   Control: FormItemControl,
   useContext: useFormItemContext,
 })
+
+/** @deprecated use IFormItemContextValue */
+export type IFormItemHeadlessContext = IFormItemContextValue
+/** @deprecated use useFormItemState */
+export const useFormItemHeadless = useFormItemState
 
 export default FormItem
