@@ -2,6 +2,106 @@
 
 > The brand-new FormItem component, compared to Antd's FormItem, it supports more functions. At the same time, it is positioned as a pure style component and does not manage the state of the form, so it will be lighter and more convenient for customization
 
+## Anatomy
+
+```tsx
+<FormItem.Root>
+  <FormItem.Label />
+  <FormItem.Control />
+  <FormItem.ErrorText />
+</FormItem.Root>
+```
+
+## Composition guide (no `BaseItem`)
+
+`FormItem` is now the root component directly, and you can compose it with slots/context:
+
+```tsx
+import { FormItem } from '@formily/antd'
+
+export default () => {
+  return (
+    <FormItem.Root
+      as="section"
+      label="Username"
+      feedbackStatus="error"
+      feedbackText="Required"
+      data-theme="tailwind"
+    >
+      <FormItem.Label as="div" className="text-sm font-medium" />
+      <FormItem.Control className="mt-2">
+        <input className="w-full rounded border px-3 py-2" />
+      </FormItem.Control>
+      <FormItem.ErrorText className="text-xs text-red-500" />
+    </FormItem.Root>
+  )
+}
+```
+
+### Public composition API
+
+- `FormItem.Root` / `FormItem` (root, supports `as`)
+- `FormItem.RootProvider`
+- `FormItem.Label` (slot, supports `as`)
+- `FormItem.Control` (slot, supports `as`)
+- `FormItem.ErrorText`
+- `FormItem.BaseForm` (pre-assembled layout)
+- `FormItem.useContext()`
+- `useFormItemState()`
+
+All visual state/structure is exposed via `data-*` attributes for external styling systems like Tailwind.
+
+### Simplified root props
+
+Current `FormItem` keeps only a minimal prop surface for layout semantics:
+
+- `id`, `label`
+- `required`, `optional`
+- `invalid`, `disabled`, `errorText`
+- polymorphic props: `as`, `className`, `style`
+
+Other presentation-specific props were intentionally removed to keep the component focused on composition.
+
+### BaseForm (pre-assembled)
+
+If you want behavior close to the traditional assembled FormItem, use `FormItem.BaseForm`:
+
+```tsx
+<FormItem.BaseForm
+  label="Username"
+  required
+  invalid
+  errorText="Required"
+  addonBefore={<span>@</span>}
+>
+  <input />
+</FormItem.BaseForm>
+```
+
+`BaseForm` composes `Root + Label + Control + ErrorText` internally while keeping the same `data-*` hooks for external styling.
+
+### Tailwind BaseForm (separate from FormItem)
+
+A new `BaseForm` component is provided in `@formily/antd`, implemented separately from the core `FormItem` anatomy and styled with Tailwind utility classes:
+
+```tsx
+import { BaseForm } from '@formily/antd'
+
+export default () => (
+  <BaseForm
+    label="Username"
+    required
+    invalid
+    errorText="Required"
+    addonBefore={<span>@</span>}
+  >
+    <input className="w-full bg-transparent outline-none" />
+  </BaseForm>
+)
+```
+
+Use `classNames` to override root/label/control/error/addon styles while keeping the assembled structure.
+
 ## Markup Schema example
 
 ```tsx
@@ -1180,6 +1280,6 @@ export default () => {
 | gridSpan              | number                                                 | Grid layout occupies width                                                                                                                    | -                   |
 | bordered              | boolean                                                | Is there a border                                                                                                                             | -                   |
 
-### FormItem.BaseItem
+### FormItem.Root
 
-Pure style components, the properties are the same as FormItem, and Formily Core does not do state bridging. It is mainly used for scenarios that need to rely on the style layout capabilities of FormItem but do not want to access the Field state.
+Root layout component for composition. Use `FormItem.Root` + slot components (`Label`, `Control`, `ErrorText`) to assemble the final UI externally.

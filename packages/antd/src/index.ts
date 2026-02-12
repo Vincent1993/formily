@@ -34,3 +34,5 @@ export * from './submit'
 export * from './reset'
 export * from './editable'
 export * from './select-table'
+
+export * from './base-form'

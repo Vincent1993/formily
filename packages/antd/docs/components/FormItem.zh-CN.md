@@ -2,6 +2,106 @@
 
 > 全新的 FormItem 组件，相比于 Antd 的 FormItem，它支持的功能更多，同时它的定位是纯样式组件，不管理表单状态，所以也会更轻量，更方便定制
 
+## Anatomy
+
+```tsx
+<FormItem.Root>
+  <FormItem.Label />
+  <FormItem.Control />
+  <FormItem.ErrorText />
+</FormItem.Root>
+```
+
+## 组合指南（不再暴露 `BaseItem`）
+
+现在 `FormItem` 本身就是根组件，你可以通过 slot/context 自由组装：
+
+```tsx
+import { FormItem } from '@formily/antd'
+
+export default () => {
+  return (
+    <FormItem.Root
+      as="section"
+      label="用户名"
+      feedbackStatus="error"
+      feedbackText="必填"
+      data-theme="tailwind"
+    >
+      <FormItem.Label as="div" className="text-sm font-medium" />
+      <FormItem.Control className="mt-2">
+        <input className="w-full rounded border px-3 py-2" />
+      </FormItem.Control>
+      <FormItem.ErrorText className="text-xs text-red-500" />
+    </FormItem.Root>
+  )
+}
+```
+
+### 对外组合 API
+
+- `FormItem.Root` / `FormItem`（根组件，支持 `as`）
+- `FormItem.RootProvider`
+- `FormItem.Label`（插槽组件，支持 `as`）
+- `FormItem.Control`（插槽组件，支持 `as`）
+- `FormItem.ErrorText`
+- `FormItem.BaseForm`（预组装布局）
+- `FormItem.useContext()`
+- `useFormItemState()`
+
+组件本身不提供样式，状态与结构通过 `data-*` 暴露，适合在 Tailwind 等体系里自行定制。
+
+### 精简后的 Root Props
+
+当前 `FormItem` 仅保留最小语义化属性：
+
+- `id`, `label`
+- `required`, `optional`
+- `invalid`, `disabled`, `errorText`
+- 多态属性：`as`, `className`, `style`
+
+其它展示性较强的 props 已有意移除，以保证组件聚焦在可组合能力。
+
+### BaseForm（预组装）
+
+如果你想要接近传统 FormItem 的开箱即用效果，可以使用 `FormItem.BaseForm`：
+
+```tsx
+<FormItem.BaseForm
+  label="用户名"
+  required
+  invalid
+  errorText="必填"
+  addonBefore={<span>@</span>}
+>
+  <input />
+</FormItem.BaseForm>
+```
+
+`BaseForm` 内部组合了 `Root + Label + Control + ErrorText`，并继续通过 `data-*` 暴露状态以供外部样式系统使用。
+
+### Tailwind BaseForm（与 FormItem 核心实现剥离）
+
+新增 `BaseForm` 组件（`@formily/antd` 导出），它与核心 `FormItem` anatomy 实现剥离，并使用 Tailwind 工具类提供默认样式：
+
+```tsx
+import { BaseForm } from '@formily/antd'
+
+export default () => (
+  <BaseForm
+    label="用户名"
+    required
+    invalid
+    errorText="必填"
+    addonBefore={<span>@</span>}
+  >
+    <input className="w-full bg-transparent outline-none" />
+  </BaseForm>
+)
+```
+
+你可以通过 `classNames` 覆盖 root/label/control/error/addon 的样式，同时保留预组装结构。
+
 ## Markup Schema 案例
 
 ```tsx
@@ -1181,6 +1281,6 @@ export default () => {
 | gridSpan              | number                                                 | ⽹格布局占宽                                                        | -                   |
 | bordered              | boolean                                                | 是否有边框                                                          | -                   |
 
-### FormItem.BaseItem
+### FormItem.Root
 
-纯样式组件，属性与 FormItem 一样，与 Formily Core 不做状态桥接，主要用于一些需要依赖 FormItem 的样式布局能力，但不希望接入 Field 状态的场景
+根布局组件。建议通过 `FormItem.Root` + `Label`/`Control`/`ErrorText` 插槽在外部进行自由组装。
