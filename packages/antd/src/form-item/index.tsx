@@ -304,7 +304,7 @@ export const FormItemControl: React.FC<SlotProps> = ({
   )
 }
 
-export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
+const FormItemRoot: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
   children,
   ...props
 }) => {
@@ -373,14 +373,12 @@ export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
 export type ComposeFormItem = React.FC<
   React.PropsWithChildren<IFormItemProps>
 > & {
-  BaseItem?: React.FC<React.PropsWithChildren<IFormItemProps>>
   Label?: typeof FormItemLabel
   Control?: typeof FormItemControl
   useContext?: typeof useFormItemContext
 }
 
-export const FormItem: ComposeFormItem = Object.assign(BaseItem, {
-  BaseItem,
+export const FormItem: ComposeFormItem = Object.assign(FormItemRoot, {
   Label: FormItemLabel,
   Control: FormItemControl,
   useContext: useFormItemContext,

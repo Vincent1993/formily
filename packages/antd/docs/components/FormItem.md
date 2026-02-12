@@ -2,6 +2,47 @@
 
 > The brand-new FormItem component, compared to Antd's FormItem, it supports more functions. At the same time, it is positioned as a pure style component and does not manage the state of the form, so it will be lighter and more convenient for customization
 
+## Headless composition guide (no `BaseItem`)
+
+`FormItem` is now the root component directly, and you can compose it with slots/context:
+
+```tsx
+import { FormItem } from '@formily/antd'
+
+export default () => {
+  return (
+    <FormItem
+      as="section"
+      label="Username"
+      feedbackText="Required"
+      data-theme="tailwind"
+    >
+      {(api) => (
+        <>
+          <FormItem.Label as="div" className="text-sm font-medium" />
+          <div className="mt-2" data-slot="field">
+            <input className="w-full rounded border px-3 py-2" />
+          </div>
+          <div className="text-xs text-gray-500">
+            active: {String(api.active)}
+          </div>
+        </>
+      )}
+    </FormItem>
+  )
+}
+```
+
+### Public composition API
+
+- `FormItem` (root, supports `as`)
+- `FormItem.Label` (slot, supports `as`)
+- `FormItem.Control` (slot, supports `as`)
+- `FormItem.useContext()`
+- `useFormItemState()`
+
+All visual state/structure is exposed via `data-*` attributes for external styling systems like Tailwind.
+
 ## Markup Schema example
 
 ```tsx
