@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useContext, useState } from 'react'
 import cls from 'classnames'
 import { isVoidField } from '@formily/core'
 import { connect, mapProps } from '@formily/react'
-import { useFormLayout, FormLayoutShallowContext } from '../form-layout'
 import { Tooltip, Popover, ConfigProvider } from 'antd'
 import {
   QuestionCircleOutlined,
@@ -37,6 +36,8 @@ const pickDataProps = (props: any = {}) => {
 
   return results
 }
+
+const useFormLayout = () => ({})
 
 export interface IFormItemProps {
   className?: string
@@ -445,9 +446,7 @@ export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
                 !!feedbackIcon,
             })}
           >
-            <FormLayoutShallowContext.Provider value={undefined}>
-              {formatChildren}
-            </FormLayoutShallowContext.Provider>
+            {formatChildren}
             {feedbackIcon && (
               <div className={cls(`${prefixCls}-feedback-icon`)}>
                 {feedbackIcon}
