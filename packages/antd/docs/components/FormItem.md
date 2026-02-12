@@ -8,7 +8,6 @@
 <FormItem.Root>
   <FormItem.Label />
   <FormItem.Control />
-  <FormItem.HelperText />
   <FormItem.ErrorText />
 </FormItem.Root>
 ```
@@ -33,7 +32,6 @@ export default () => {
       <FormItem.Control className="mt-2">
         <input className="w-full rounded border px-3 py-2" />
       </FormItem.Control>
-      <FormItem.HelperText className="text-xs text-gray-500" />
       <FormItem.ErrorText className="text-xs text-red-500" />
     </FormItem.Root>
   )
@@ -46,12 +44,22 @@ export default () => {
 - `FormItem.RootProvider`
 - `FormItem.Label` (slot, supports `as`)
 - `FormItem.Control` (slot, supports `as`)
-- `FormItem.HelperText`
 - `FormItem.ErrorText`
 - `FormItem.useContext()`
 - `useFormItemState()`
 
 All visual state/structure is exposed via `data-*` attributes for external styling systems like Tailwind.
+
+### Simplified root props
+
+Current `FormItem` keeps only a minimal prop surface for layout semantics:
+
+- `id`, `label`
+- `required`, `optional`
+- `invalid`, `disabled`, `errorText`
+- polymorphic props: `as`, `className`, `style`
+
+Other presentation-specific props were intentionally removed to keep the component focused on composition.
 
 ## Markup Schema example
 
@@ -1233,4 +1241,4 @@ export default () => {
 
 ### FormItem.Root
 
-Root layout component for composition. Use `FormItem.Root` + slot components (`Label`, `Control`, `HelperText`, `ErrorText`) to assemble the final UI externally.
+Root layout component for composition. Use `FormItem.Root` + slot components (`Label`, `Control`, `ErrorText`) to assemble the final UI externally.

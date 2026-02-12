@@ -8,7 +8,6 @@
 <FormItem.Root>
   <FormItem.Label />
   <FormItem.Control />
-  <FormItem.HelperText />
   <FormItem.ErrorText />
 </FormItem.Root>
 ```
@@ -33,7 +32,6 @@ export default () => {
       <FormItem.Control className="mt-2">
         <input className="w-full rounded border px-3 py-2" />
       </FormItem.Control>
-      <FormItem.HelperText className="text-xs text-gray-500" />
       <FormItem.ErrorText className="text-xs text-red-500" />
     </FormItem.Root>
   )
@@ -46,12 +44,22 @@ export default () => {
 - `FormItem.RootProvider`
 - `FormItem.Label`（插槽组件，支持 `as`）
 - `FormItem.Control`（插槽组件，支持 `as`）
-- `FormItem.HelperText`
 - `FormItem.ErrorText`
 - `FormItem.useContext()`
 - `useFormItemState()`
 
 组件本身不提供样式，状态与结构通过 `data-*` 暴露，适合在 Tailwind 等体系里自行定制。
+
+### 精简后的 Root Props
+
+当前 `FormItem` 仅保留最小语义化属性：
+
+- `id`, `label`
+- `required`, `optional`
+- `invalid`, `disabled`, `errorText`
+- 多态属性：`as`, `className`, `style`
+
+其它展示性较强的 props 已有意移除，以保证组件聚焦在可组合能力。
 
 ## Markup Schema 案例
 
@@ -1234,4 +1242,4 @@ export default () => {
 
 ### FormItem.Root
 
-根布局组件。建议通过 `FormItem.Root` + `Label`/`Control`/`HelperText`/`ErrorText` 插槽在外部进行自由组装。
+根布局组件。建议通过 `FormItem.Root` + `Label`/`Control`/`ErrorText` 插槽在外部进行自由组装。
