@@ -1,26 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react'
-import cls from 'classnames'
-import { ConfigProvider, Popover, Tooltip } from 'antd'
-import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ExclamationCircleOutlined,
-  QuestionCircleOutlined,
-} from '@ant-design/icons'
-
-const usePrefixCls = (
-  tag?: string,
-  props?: {
-    prefixCls?: string
-  }
-) => {
-  if ('ConfigContext' in ConfigProvider) {
-    const { getPrefixCls } = useContext(ConfigProvider.ConfigContext)
-    return getPrefixCls(tag, props?.prefixCls)
-  }
-  const prefix = props?.prefixCls ?? 'ant-'
-  return `${prefix}${tag ?? ''}`
-}
+import React, { useContext, useMemo, useRef, useState, useEffect } from 'react'
 
 const pickDataProps = (props: any = {}) => {
   const results = {}
@@ -32,19 +10,14 @@ const pickDataProps = (props: any = {}) => {
   return results
 }
 
-const ICON_MAP = {
-  error: <CloseCircleOutlined />,
-  success: <CheckCircleOutlined />,
-  warning: <ExclamationCircleOutlined />,
-}
-
 export interface IFormItemProps {
+  as?: React.ElementType
   className?: string
   style?: React.CSSProperties
   prefixCls?: string
   label?: React.ReactNode
   colon?: boolean
-  tooltip?: React.ReactNode | React.ComponentProps<typeof Tooltip>
+  tooltip?: React.ReactNode
   tooltipIcon?: React.ReactNode
   layout?: 'vertical' | 'horizontal' | 'inline'
   tooltipLayout?: 'icon' | 'text'
@@ -76,41 +49,39 @@ export interface IFormItemProps {
   gridSpan?: number
   bordered?: boolean
   requiredMark?: boolean | 'optional'
+  children?:
+    | React.ReactNode
+    | ((context: IFormItemHeadlessContext) => React.ReactNode)
+}
+
+interface IFormItemResolvedProps extends IFormItemProps {
+  layout: 'vertical' | 'horizontal' | 'inline'
+  wrapperAlign: 'left' | 'right'
+  feedbackLayout: 'loose' | 'terse' | 'popover' | 'none' | (string & {})
+  enableOutlineFeedback: boolean
+  tooltipLayout: 'icon' | 'text'
+  colon: boolean
+  requiredMark: boolean | 'optional'
+  optionalMarkHidden: boolean
+  bordered: boolean
 }
 
 export interface IFormItemHeadlessContext {
-  prefixCls: string
-  props: Required<
-    Pick<
-      IFormItemProps,
-      | 'layout'
-      | 'wrapperAlign'
-      | 'feedbackLayout'
-      | 'enableOutlineFeedback'
-      | 'tooltipLayout'
-      | 'colon'
-      | 'requiredMark'
-      | 'optionalMarkHidden'
-      | 'bordered'
-    >
-  > &
-    IFormItemProps
+  props: IFormItemResolvedProps
   active: boolean
   setActive: React.Dispatch<React.SetStateAction<boolean>>
   overflow: boolean
+  rootDataAttrs: Record<string, any>
   labelStyle: React.CSSProperties
-  wrapperStyle: React.CSSProperties
-  enableCol: boolean
-  tooltipNode?: React.ReactNode
-  renderLabel: () => React.ReactNode
+  controlStyle: React.CSSProperties
+  renderLabel: (props?: {
+    as?: React.ElementType
+    className?: string
+    style?: React.CSSProperties
+  }) => React.ReactNode
 }
 
 const FormItemContext = React.createContext<IFormItemHeadlessContext>(null)
-
-const isTooltipProps = (
-  tooltip: React.ReactNode | React.ComponentProps<typeof Tooltip>
-): tooltip is React.ComponentProps<typeof Tooltip> =>
-  !React.isValidElement(tooltip)
 
 const useOverflow = <
   Container extends HTMLElement,
@@ -123,10 +94,10 @@ const useOverflow = <
   useEffect(() => {
     requestAnimationFrame(() => {
       if (!containerRef.current || !contentRef.current) return
-      const contentWidth = contentRef.current.getBoundingClientRect().width
       const containerWidth = containerRef.current.getBoundingClientRect().width
+      const contentWidth = contentRef.current.getBoundingClientRect().width
       setOverflow(
-        !!contentWidth && !!containerWidth && containerWidth < contentWidth
+        !!containerWidth && !!contentWidth && contentWidth > containerWidth
       )
     })
   })
@@ -138,351 +109,266 @@ const useOverflow = <
   }
 }
 
+const getResolvedProps = (props: IFormItemProps): IFormItemResolvedProps => ({
+  ...props,
+  layout: props.layout ?? 'horizontal',
+  wrapperAlign: props.wrapperAlign ?? 'left',
+  feedbackLayout: props.feedbackLayout ?? 'loose',
+  enableOutlineFeedback: props.enableOutlineFeedback ?? true,
+  tooltipLayout: props.tooltipLayout ?? 'icon',
+  colon: props.colon ?? true,
+  requiredMark: props.requiredMark ?? true,
+  optionalMarkHidden: props.optionalMarkHidden ?? false,
+  bordered: props.bordered ?? true,
+})
+
 export const useFormItemHeadless = (
   props: IFormItemProps
 ): IFormItemHeadlessContext => {
-  const { locale } = useContext(ConfigProvider.ConfigContext)
-  const prefixCls = usePrefixCls('formily-item', props)
+  const resolvedProps = getResolvedProps(props)
   const [active, setActive] = useState(false)
   const { overflow, containerRef, contentRef } = useOverflow<
     HTMLDivElement,
     HTMLSpanElement
   >()
 
-  const normalizedProps = {
-    ...props,
-    layout: props.layout ?? 'horizontal',
-    wrapperAlign: props.wrapperAlign ?? 'left',
-    feedbackLayout: props.feedbackLayout ?? 'loose',
-    enableOutlineFeedback: props.enableOutlineFeedback ?? true,
-    tooltipLayout: props.tooltipLayout ?? 'icon',
-    colon: props.colon ?? true,
-    requiredMark: props.requiredMark ?? true,
-    optionalMarkHidden: props.optionalMarkHidden ?? false,
-    bordered: props.bordered ?? true,
-    tooltipIcon: props.tooltipIcon ?? <QuestionCircleOutlined />,
-  }
-
-  const labelStyle = { ...props.labelStyle }
-  const wrapperStyle = { ...props.wrapperStyle }
-  let enableCol = false
-
-  if (props.labelWidth || props.wrapperWidth) {
-    if (props.labelWidth) {
-      labelStyle.width =
-        props.labelWidth === 'auto' ? undefined : props.labelWidth
-      labelStyle.maxWidth =
-        props.labelWidth === 'auto' ? undefined : props.labelWidth
+  const labelStyle = useMemo(() => {
+    const nextStyle = { ...resolvedProps.labelStyle }
+    if (resolvedProps.labelWidth) {
+      nextStyle.width =
+        resolvedProps.labelWidth === 'auto'
+          ? undefined
+          : resolvedProps.labelWidth
+      nextStyle.maxWidth =
+        resolvedProps.labelWidth === 'auto'
+          ? undefined
+          : resolvedProps.labelWidth
     }
-    if (props.wrapperWidth) {
-      wrapperStyle.width =
-        props.wrapperWidth === 'auto' ? undefined : props.wrapperWidth
-      wrapperStyle.maxWidth =
-        props.wrapperWidth === 'auto' ? undefined : props.wrapperWidth
+    return nextStyle
+  }, [resolvedProps.labelStyle, resolvedProps.labelWidth])
+
+  const controlStyle = useMemo(() => {
+    const nextStyle = { ...resolvedProps.wrapperStyle }
+    if (resolvedProps.wrapperWidth) {
+      nextStyle.width =
+        resolvedProps.wrapperWidth === 'auto'
+          ? undefined
+          : resolvedProps.wrapperWidth
+      nextStyle.maxWidth =
+        resolvedProps.wrapperWidth === 'auto'
+          ? undefined
+          : resolvedProps.wrapperWidth
     }
+    return nextStyle
+  }, [resolvedProps.wrapperStyle, resolvedProps.wrapperWidth])
+
+  const rootDataAttrs = {
+    'data-layout': resolvedProps.layout,
+    'data-size': resolvedProps.size,
+    'data-feedback-status': resolvedProps.feedbackStatus,
+    'data-feedback-layout': resolvedProps.feedbackLayout,
+    'data-label-align': resolvedProps.labelAlign,
+    'data-control-align': resolvedProps.wrapperAlign,
+    'data-label-wrap': resolvedProps.labelWrap ? '' : undefined,
+    'data-control-wrap': resolvedProps.wrapperWrap ? '' : undefined,
+    'data-fullness':
+      resolvedProps.fullness ||
+      resolvedProps.inset ||
+      resolvedProps.feedbackIcon
+        ? ''
+        : undefined,
+    'data-inset': resolvedProps.inset ? '' : undefined,
+    'data-inset-active': resolvedProps.inset && active ? '' : undefined,
+    'data-active': active ? '' : undefined,
+    'data-borderless':
+      resolvedProps.bordered === false ||
+      resolvedProps.inset ||
+      resolvedProps.feedbackIcon
+        ? ''
+        : undefined,
+    'data-grid-span': resolvedProps.gridSpan,
   }
 
-  if (
-    (props.labelCol || props.wrapperCol) &&
-    !labelStyle.width &&
-    !wrapperStyle.width &&
-    normalizedProps.layout !== 'vertical'
-  ) {
-    enableCol = true
-  }
+  const renderLabel = (slotProps?: {
+    as?: React.ElementType
+    className?: string
+    style?: React.CSSProperties
+  }) => {
+    if (!resolvedProps.label) return null
+    const LabelTag = slotProps?.as || 'div'
+    const showOptional =
+      !resolvedProps.asterisk &&
+      resolvedProps.requiredMark === 'optional' &&
+      !resolvedProps.optionalMarkHidden
 
-  const tooltipNode = props.tooltip ? (
-    isTooltipProps(props.tooltip) ? (
-      <Tooltip {...props.tooltip}></Tooltip>
-    ) : (
-      props.tooltip
-    )
-  ) : undefined
-
-  const getOverflowTooltip = () => {
-    if (overflow) {
-      return (
-        <div>
-          <div>{props.label}</div>
-          <div>{tooltipNode}</div>
-        </div>
-      )
-    }
-    return tooltipNode
-  }
-
-  const renderLabelText = () => {
-    const labelChildren = (
-      <div className={`${prefixCls}-label-content`} ref={containerRef}>
-        <span ref={contentRef}>
-          {props.asterisk && normalizedProps.requiredMark === true && (
-            <span className={`${prefixCls}-asterisk`}>*</span>
-          )}
-          <label htmlFor={props.labelFor}>{props.label}</label>
-          {!props.asterisk &&
-            normalizedProps.requiredMark === 'optional' &&
-            !normalizedProps.optionalMarkHidden && (
-              <span className={`${prefixCls}-optional`}>
-                {locale?.Form?.optional}
-              </span>
-            )}
-        </span>
-      </div>
-    )
-
-    if (
-      (normalizedProps.tooltipLayout === 'text' && props.tooltip) ||
-      overflow
-    ) {
-      return (
-        <Tooltip
-          placement="top"
-          align={{ offset: [0, 10] }}
-          title={getOverflowTooltip()}
-        >
-          {labelChildren}
-        </Tooltip>
-      )
-    }
-
-    return labelChildren
-  }
-
-  const renderTooltipIcon = () => {
-    if (
-      props.tooltip &&
-      normalizedProps.tooltipLayout === 'icon' &&
-      !overflow
-    ) {
-      return (
-        <span className={`${prefixCls}-label-tooltip-icon`}>
-          <Tooltip
-            placement="top"
-            align={{ offset: [0, 2] }}
-            title={tooltipNode}
-          >
-            {normalizedProps.tooltipIcon}
-          </Tooltip>
-        </span>
-      )
-    }
-    return null
-  }
-
-  const renderLabel = () => {
-    if (!props.label) return null
     return (
-      <div
-        className={cls({
-          [`${prefixCls}-label`]: true,
-          [`${prefixCls}-label-tooltip`]:
-            (props.tooltip && normalizedProps.tooltipLayout === 'text') ||
-            overflow,
-          [`${prefixCls}-item-col-${props.labelCol}`]:
-            enableCol && !!props.labelCol,
-        })}
-        style={labelStyle}
+      <LabelTag
+        className={slotProps?.className}
+        style={{ ...labelStyle, ...slotProps?.style }}
+        data-slot="label"
+        data-tooltip={
+          (resolvedProps.tooltipLayout === 'text' && !!resolvedProps.tooltip) ||
+          overflow
+            ? ''
+            : undefined
+        }
+        data-col={resolvedProps.labelCol}
       >
-        {renderLabelText()}
-        {renderTooltipIcon()}
-        {props.label !== ' ' && (
-          <span className={`${prefixCls}-colon`}>
-            {normalizedProps.colon ? ':' : ''}
+        <div
+          data-slot="label-content"
+          ref={containerRef}
+          title={
+            overflow && typeof resolvedProps.label === 'string'
+              ? resolvedProps.label
+              : undefined
+          }
+        >
+          <span ref={contentRef}>
+            {resolvedProps.asterisk && resolvedProps.requiredMark === true && (
+              <span data-slot="asterisk">*</span>
+            )}
+            <label htmlFor={resolvedProps.labelFor}>
+              {resolvedProps.label}
+            </label>
+            {showOptional && <span data-slot="optional">optional</span>}
           </span>
+        </div>
+        {resolvedProps.tooltip &&
+          resolvedProps.tooltipLayout === 'icon' &&
+          !overflow && (
+            <span data-slot="tooltip-icon">
+              {resolvedProps.tooltipIcon ?? '?'}
+            </span>
+          )}
+        {resolvedProps.label !== ' ' && (
+          <span data-slot="colon">{resolvedProps.colon ? ':' : ''}</span>
         )}
-      </div>
+      </LabelTag>
     )
   }
 
   return {
-    prefixCls,
-    props: normalizedProps,
+    props: resolvedProps,
     active,
     setActive,
     overflow,
+    rootDataAttrs,
     labelStyle,
-    wrapperStyle,
-    enableCol,
-    tooltipNode,
+    controlStyle,
     renderLabel,
   }
 }
 
 export const useFormItemContext = () => useContext(FormItemContext)
 
+type SlotProps = React.PropsWithChildren<{
+  as?: React.ElementType
+  className?: string
+  style?: React.CSSProperties
+}>
+
+export const FormItemLabel: React.FC<SlotProps> = ({
+  as,
+  className,
+  style,
+}) => {
+  const ctx = useFormItemContext()
+  if (!ctx) return null
+  return <>{ctx.renderLabel({ as, className, style })}</>
+}
+
+export const FormItemControl: React.FC<SlotProps> = ({
+  as,
+  className,
+  style,
+  children,
+}) => {
+  const ctx = useFormItemContext()
+  const Tag = as || 'div'
+  if (!ctx)
+    return (
+      <Tag className={className} style={style}>
+        {children}
+      </Tag>
+    )
+
+  return (
+    <Tag
+      className={className}
+      style={{ ...ctx.controlStyle, ...style }}
+      data-slot="control"
+      data-col={ctx.props.wrapperCol}
+    >
+      {children}
+    </Tag>
+  )
+}
+
 export const BaseItem: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
   children,
   ...props
 }) => {
-  const headless = useFormItemHeadless(props)
-  const { prefixCls, active, setActive, wrapperStyle, enableCol } = headless
-  const {
-    style,
-    className,
-    layout,
-    feedbackStatus,
-    feedbackText,
-    feedbackLayout,
-    feedbackIcon,
-    enableOutlineFeedback,
-    size,
-    fullness,
-    inset,
-    labelAlign,
-    wrapperAlign,
-    labelWrap,
-    wrapperWrap,
-    bordered,
-    addonBefore,
-    addonAfter,
-    extra,
-    getPopupContainer,
-    wrapperCol,
-    label,
-    gridSpan,
-  } = headless.props
+  const ctx = useFormItemHeadless(props)
+  const RootTag = props.as || 'div'
 
   const content =
     typeof children === 'function'
-      ? (children as (ctx: IFormItemHeadlessContext) => React.ReactNode)(
-          headless
+      ? (children as (context: IFormItemHeadlessContext) => React.ReactNode)(
+          ctx
         )
       : children
 
-  const renderedChildren =
-    feedbackLayout === 'popover' ? (
-      <Popover
-        autoAdjustOverflow
-        placement="top"
-        content={
-          <div
-            className={cls({
-              [`${prefixCls}-${feedbackStatus}-help`]: !!feedbackStatus,
-              [`${prefixCls}-help`]: true,
-            })}
-          >
-            {ICON_MAP[feedbackStatus]} {feedbackText}
-          </div>
-        }
-        visible={!!feedbackText}
-        getPopupContainer={getPopupContainer}
-      >
-        {content}
-      </Popover>
-    ) : (
-      content
-    )
-
   return (
-    <FormItemContext.Provider value={headless}>
-      <div
+    <FormItemContext.Provider value={ctx}>
+      <RootTag
         {...pickDataProps(props)}
-        style={style}
-        data-grid-span={gridSpan}
-        className={cls({
-          [`${prefixCls}`]: true,
-          [`${prefixCls}-layout-${layout}`]: true,
-          [`${prefixCls}-${feedbackStatus}`]:
-            enableOutlineFeedback && !!feedbackStatus,
-          [`${prefixCls}-feedback-has-text`]: !!feedbackText,
-          [`${prefixCls}-size-${size}`]: !!size,
-          [`${prefixCls}-feedback-layout-${feedbackLayout}`]: !!feedbackLayout,
-          [`${prefixCls}-fullness`]: !!fullness || !!inset || !!feedbackIcon,
-          [`${prefixCls}-inset`]: !!inset,
-          [`${prefixCls}-active`]: active,
-          [`${prefixCls}-inset-active`]: !!inset && active,
-          [`${prefixCls}-label-align-${labelAlign}`]: true,
-          [`${prefixCls}-control-align-${wrapperAlign}`]: true,
-          [`${prefixCls}-label-wrap`]: !!labelWrap,
-          [`${prefixCls}-control-wrap`]: !!wrapperWrap,
-          [`${prefixCls}-bordered-none`]:
-            bordered === false || !!inset || !!feedbackIcon,
-          [className]: !!className,
-        })}
+        style={props.style}
+        className={props.className}
+        {...ctx.rootDataAttrs}
         onFocus={() => {
-          if (feedbackIcon || inset) {
-            setActive(true)
+          if (ctx.props.feedbackIcon || ctx.props.inset) {
+            ctx.setActive(true)
           }
         }}
         onBlur={() => {
-          if (feedbackIcon || inset) {
-            setActive(false)
+          if (ctx.props.feedbackIcon || ctx.props.inset) {
+            ctx.setActive(false)
           }
         }}
       >
-        {headless.renderLabel()}
-        <div
-          className={cls({
-            [`${prefixCls}-control`]: true,
-            [`${prefixCls}-item-col-${wrapperCol}`]:
-              enableCol && !!wrapperCol && label,
-          })}
-        >
-          <div className={cls(`${prefixCls}-control-content`)}>
-            {addonBefore && (
-              <div className={cls(`${prefixCls}-addon-before`)}>
-                {addonBefore}
-              </div>
+        {ctx.renderLabel()}
+        <div data-slot="control-wrap" data-col={ctx.props.wrapperCol}>
+          <div data-slot="control-inner">
+            {ctx.props.addonBefore && (
+              <div data-slot="addon-before">{ctx.props.addonBefore}</div>
             )}
             <div
-              style={wrapperStyle}
-              className={cls({
-                [`${prefixCls}-control-content-component`]: true,
-                [`${prefixCls}-control-content-component-has-feedback-icon`]:
-                  !!feedbackIcon,
-              })}
+              data-slot="control-content"
+              style={ctx.controlStyle}
+              data-has-feedback-icon={ctx.props.feedbackIcon ? '' : undefined}
             >
-              {renderedChildren}
-              {feedbackIcon && (
-                <div className={cls(`${prefixCls}-feedback-icon`)}>
-                  {feedbackIcon}
-                </div>
+              {content}
+              {ctx.props.feedbackIcon && (
+                <div data-slot="feedback-icon">{ctx.props.feedbackIcon}</div>
               )}
             </div>
-            {addonAfter && (
-              <div className={cls(`${prefixCls}-addon-after`)}>
-                {addonAfter}
-              </div>
+            {ctx.props.addonAfter && (
+              <div data-slot="addon-after">{ctx.props.addonAfter}</div>
             )}
           </div>
-          {!!feedbackText &&
-            feedbackLayout !== 'popover' &&
-            feedbackLayout !== 'none' && (
-              <div
-                className={cls({
-                  [`${prefixCls}-${feedbackStatus}-help`]: !!feedbackStatus,
-                  [`${prefixCls}-help`]: true,
-                  [`${prefixCls}-help-enter`]: true,
-                  [`${prefixCls}-help-enter-active`]: true,
-                })}
-              >
-                {feedbackText}
-              </div>
-            )}
-          {extra && <div className={cls(`${prefixCls}-extra`)}>{extra}</div>}
+          {!!ctx.props.feedbackText && ctx.props.feedbackLayout !== 'none' && (
+            <div
+              data-slot="help"
+              data-feedback-status={ctx.props.feedbackStatus}
+              data-feedback-layout={ctx.props.feedbackLayout}
+            >
+              {ctx.props.feedbackText}
+            </div>
+          )}
+          {ctx.props.extra && <div data-slot="extra">{ctx.props.extra}</div>}
         </div>
-      </div>
+      </RootTag>
     </FormItemContext.Provider>
-  )
-}
-
-export const FormItemLabel: React.FC<React.PropsWithChildren<{}>> = () => {
-  const ctx = useFormItemContext()
-  return ctx?.renderLabel() ?? null
-}
-
-export const FormItemControl: React.FC<
-  React.PropsWithChildren<{ className?: string; style?: React.CSSProperties }>
-> = ({ children, className, style }) => {
-  const ctx = useFormItemContext()
-  if (!ctx) return <>{children}</>
-  return (
-    <div
-      className={cls(`${ctx.prefixCls}-control-content-component`, className)}
-      style={style}
-    >
-      {children}
-    </div>
   )
 }
 
