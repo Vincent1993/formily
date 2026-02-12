@@ -80,6 +80,28 @@ If you want behavior close to the traditional assembled FormItem, use `FormItem.
 
 `BaseForm` composes `Root + Label + Control + ErrorText` internally while keeping the same `data-*` hooks for external styling.
 
+### Tailwind BaseForm (separate from FormItem)
+
+A new `BaseForm` component is provided in `@formily/antd`, implemented separately from the core `FormItem` anatomy and styled with Tailwind utility classes:
+
+```tsx
+import { BaseForm } from '@formily/antd'
+
+export default () => (
+  <BaseForm
+    label="Username"
+    required
+    invalid
+    errorText="Required"
+    addonBefore={<span>@</span>}
+  >
+    <input className="w-full bg-transparent outline-none" />
+  </BaseForm>
+)
+```
+
+Use `classNames` to override root/label/control/error/addon styles while keeping the assembled structure.
+
 ## Markup Schema example
 
 ```tsx

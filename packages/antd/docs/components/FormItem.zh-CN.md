@@ -80,6 +80,28 @@ export default () => {
 
 `BaseForm` 内部组合了 `Root + Label + Control + ErrorText`，并继续通过 `data-*` 暴露状态以供外部样式系统使用。
 
+### Tailwind BaseForm（与 FormItem 核心实现剥离）
+
+新增 `BaseForm` 组件（`@formily/antd` 导出），它与核心 `FormItem` anatomy 实现剥离，并使用 Tailwind 工具类提供默认样式：
+
+```tsx
+import { BaseForm } from '@formily/antd'
+
+export default () => (
+  <BaseForm
+    label="用户名"
+    required
+    invalid
+    errorText="必填"
+    addonBefore={<span>@</span>}
+  >
+    <input className="w-full bg-transparent outline-none" />
+  </BaseForm>
+)
+```
+
+你可以通过 `classNames` 覆盖 root/label/control/error/addon 的样式，同时保留预组装结构。
+
 ## Markup Schema 案例
 
 ```tsx
