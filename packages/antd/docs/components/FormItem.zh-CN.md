@@ -2,7 +2,18 @@
 
 > 全新的 FormItem 组件，相比于 Antd 的 FormItem，它支持的功能更多，同时它的定位是纯样式组件，不管理表单状态，所以也会更轻量，更方便定制
 
-## Headless 组合指南（不再暴露 `BaseItem`）
+## Anatomy
+
+```tsx
+<FormItem.Root>
+  <FormItem.Label />
+  <FormItem.Control />
+  <FormItem.HelperText />
+  <FormItem.ErrorText />
+</FormItem.Root>
+```
+
+## 组合指南（不再暴露 `BaseItem`）
 
 现在 `FormItem` 本身就是根组件，你可以通过 slot/context 自由组装：
 
@@ -11,33 +22,32 @@ import { FormItem } from '@formily/antd'
 
 export default () => {
   return (
-    <FormItem
+    <FormItem.Root
       as="section"
       label="用户名"
+      feedbackStatus="error"
       feedbackText="必填"
       data-theme="tailwind"
     >
-      {(api) => (
-        <>
-          <FormItem.Label as="div" className="text-sm font-medium" />
-          <div className="mt-2" data-slot="field">
-            <input className="w-full rounded border px-3 py-2" />
-          </div>
-          <div className="text-xs text-gray-500">
-            active: {String(api.active)}
-          </div>
-        </>
-      )}
-    </FormItem>
+      <FormItem.Label as="div" className="text-sm font-medium" />
+      <FormItem.Control className="mt-2">
+        <input className="w-full rounded border px-3 py-2" />
+      </FormItem.Control>
+      <FormItem.HelperText className="text-xs text-gray-500" />
+      <FormItem.ErrorText className="text-xs text-red-500" />
+    </FormItem.Root>
   )
 }
 ```
 
 ### 对外组合 API
 
-- `FormItem`（根组件，支持 `as`）
+- `FormItem.Root` / `FormItem`（根组件，支持 `as`）
+- `FormItem.RootProvider`
 - `FormItem.Label`（插槽组件，支持 `as`）
 - `FormItem.Control`（插槽组件，支持 `as`）
+- `FormItem.HelperText`
+- `FormItem.ErrorText`
 - `FormItem.useContext()`
 - `useFormItemState()`
 
@@ -1222,6 +1232,6 @@ export default () => {
 | gridSpan              | number                                                 | ⽹格布局占宽                                                        | -                   |
 | bordered              | boolean                                                | 是否有边框                                                          | -                   |
 
-### FormItem.BaseItem
+### FormItem.Root
 
-纯样式组件，属性与 FormItem 一样，与 Formily Core 不做状态桥接，主要用于一些需要依赖 FormItem 的样式布局能力，但不希望接入 Field 状态的场景
+根布局组件。建议通过 `FormItem.Root` + `Label`/`Control`/`HelperText`/`ErrorText` 插槽在外部进行自由组装。

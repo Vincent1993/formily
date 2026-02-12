@@ -10,11 +10,15 @@ const pickDataProps = (props: any = {}) => {
   return results
 }
 
-export interface IFormItemProps {
-  as?: React.ElementType
+type ElementType = React.ElementType
+
+type PolymorphicProps = {
+  as?: ElementType
   className?: string
   style?: React.CSSProperties
-  prefixCls?: string
+}
+
+export interface IFormItemProps extends PolymorphicProps {
   label?: React.ReactNode
   colon?: boolean
   tooltip?: React.ReactNode
@@ -43,7 +47,6 @@ export interface IFormItemProps {
   feedbackStatus?: 'error' | 'warning' | 'success' | 'pending' | (string & {})
   feedbackIcon?: React.ReactNode
   enableOutlineFeedback?: boolean
-  getPopupContainer?: (node: HTMLElement) => HTMLElement
   asterisk?: boolean
   optionalMarkHidden?: boolean
   gridSpan?: number
@@ -54,7 +57,7 @@ export interface IFormItemProps {
     | ((context: IFormItemContextValue) => React.ReactNode)
 }
 
-interface IFormItemResolvedProps extends IFormItemProps {
+interface IResolvedFormItemProps extends IFormItemProps {
   layout: 'vertical' | 'horizontal' | 'inline'
   wrapperAlign: 'left' | 'right'
   feedbackLayout: 'loose' | 'terse' | 'popover' | 'none' | (string & {})
@@ -67,49 +70,24 @@ interface IFormItemResolvedProps extends IFormItemProps {
 }
 
 export interface IFormItemContextValue {
-  props: IFormItemResolvedProps
+  props: IResolvedFormItemProps
   active: boolean
   setActive: React.Dispatch<React.SetStateAction<boolean>>
   overflow: boolean
+  refs: {
+    labelContainerRef: React.MutableRefObject<HTMLDivElement>
+    labelContentRef: React.MutableRefObject<HTMLSpanElement>
+  }
   rootDataAttrs: Record<string, any>
+  labelDataAttrs: Record<string, any>
+  controlDataAttrs: Record<string, any>
   labelStyle: React.CSSProperties
   controlStyle: React.CSSProperties
-  renderLabel: (props?: {
-    as?: React.ElementType
-    className?: string
-    style?: React.CSSProperties
-  }) => React.ReactNode
 }
 
 const FormItemContext = React.createContext<IFormItemContextValue>(null)
 
-const useOverflow = <
-  Container extends HTMLElement,
-  Content extends HTMLElement
->() => {
-  const [overflow, setOverflow] = useState(false)
-  const containerRef = useRef<Container>()
-  const contentRef = useRef<Content>()
-
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      if (!containerRef.current || !contentRef.current) return
-      const containerWidth = containerRef.current.getBoundingClientRect().width
-      const contentWidth = contentRef.current.getBoundingClientRect().width
-      setOverflow(
-        !!containerWidth && !!contentWidth && contentWidth > containerWidth
-      )
-    })
-  })
-
-  return {
-    overflow,
-    containerRef,
-    contentRef,
-  }
-}
-
-const getResolvedProps = (props: IFormItemProps): IFormItemResolvedProps => ({
+const getResolvedProps = (props: IFormItemProps): IResolvedFormItemProps => ({
   ...props,
   layout: props.layout ?? 'horizontal',
   wrapperAlign: props.wrapperAlign ?? 'left',
@@ -127,10 +105,21 @@ export const useFormItemState = (
 ): IFormItemContextValue => {
   const resolvedProps = getResolvedProps(props)
   const [active, setActive] = useState(false)
-  const { overflow, containerRef, contentRef } = useOverflow<
-    HTMLDivElement,
-    HTMLSpanElement
-  >()
+  const [overflow, setOverflow] = useState(false)
+  const labelContainerRef = useRef<HTMLDivElement>()
+  const labelContentRef = useRef<HTMLSpanElement>()
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (!labelContainerRef.current || !labelContentRef.current) return
+      const containerWidth =
+        labelContainerRef.current.getBoundingClientRect().width
+      const contentWidth = labelContentRef.current.getBoundingClientRect().width
+      setOverflow(
+        !!containerWidth && !!contentWidth && contentWidth > containerWidth
+      )
+    })
+  })
 
   const labelStyle = useMemo(() => {
     const nextStyle = { ...resolvedProps.labelStyle }
@@ -163,6 +152,7 @@ export const useFormItemState = (
   }, [resolvedProps.wrapperStyle, resolvedProps.wrapperWidth])
 
   const rootDataAttrs = {
+    'data-slot': 'root',
     'data-layout': resolvedProps.layout,
     'data-size': resolvedProps.size,
     'data-feedback-status': resolvedProps.feedbackStatus,
@@ -189,62 +179,19 @@ export const useFormItemState = (
     'data-grid-span': resolvedProps.gridSpan,
   }
 
-  const renderLabel = (slotProps?: {
-    as?: React.ElementType
-    className?: string
-    style?: React.CSSProperties
-  }) => {
-    if (!resolvedProps.label) return null
-    const LabelTag = slotProps?.as || 'div'
-    const showOptional =
-      !resolvedProps.asterisk &&
-      resolvedProps.requiredMark === 'optional' &&
-      !resolvedProps.optionalMarkHidden
+  const labelDataAttrs = {
+    'data-slot': 'label',
+    'data-col': resolvedProps.labelCol,
+    'data-label-overflow': overflow ? '' : undefined,
+    'data-tooltip-mode': resolvedProps.tooltip
+      ? resolvedProps.tooltipLayout
+      : undefined,
+  }
 
-    return (
-      <LabelTag
-        className={slotProps?.className}
-        style={{ ...labelStyle, ...slotProps?.style }}
-        data-slot="label"
-        data-tooltip={
-          (resolvedProps.tooltipLayout === 'text' && !!resolvedProps.tooltip) ||
-          overflow
-            ? ''
-            : undefined
-        }
-        data-col={resolvedProps.labelCol}
-      >
-        <div
-          data-slot="label-content"
-          ref={containerRef}
-          title={
-            overflow && typeof resolvedProps.label === 'string'
-              ? resolvedProps.label
-              : undefined
-          }
-        >
-          <span ref={contentRef}>
-            {resolvedProps.asterisk && resolvedProps.requiredMark === true && (
-              <span data-slot="asterisk">*</span>
-            )}
-            <label htmlFor={resolvedProps.labelFor}>
-              {resolvedProps.label}
-            </label>
-            {showOptional && <span data-slot="optional">optional</span>}
-          </span>
-        </div>
-        {resolvedProps.tooltip &&
-          resolvedProps.tooltipLayout === 'icon' &&
-          !overflow && (
-            <span data-slot="tooltip-icon">
-              {resolvedProps.tooltipIcon ?? '?'}
-            </span>
-          )}
-        {resolvedProps.label !== ' ' && (
-          <span data-slot="colon">{resolvedProps.colon ? ':' : ''}</span>
-        )}
-      </LabelTag>
-    )
+  const controlDataAttrs = {
+    'data-slot': 'control',
+    'data-col': resolvedProps.wrapperCol,
+    'data-has-feedback-icon': resolvedProps.feedbackIcon ? '' : undefined,
   }
 
   return {
@@ -252,29 +199,125 @@ export const useFormItemState = (
     active,
     setActive,
     overflow,
+    refs: {
+      labelContainerRef,
+      labelContentRef,
+    },
     rootDataAttrs,
+    labelDataAttrs,
+    controlDataAttrs,
     labelStyle,
     controlStyle,
-    renderLabel,
   }
 }
 
 export const useFormItemContext = () => useContext(FormItemContext)
 
-type SlotProps = React.PropsWithChildren<{
-  as?: React.ElementType
-  className?: string
-  style?: React.CSSProperties
-}>
+export interface IFormItemRootProviderProps extends PolymorphicProps {
+  value: IFormItemContextValue
+  children?: React.ReactNode
+}
+
+export const FormItemRootProvider: React.FC<IFormItemRootProviderProps> = ({
+  value,
+  as,
+  className,
+  style,
+  children,
+  ...props
+}) => {
+  const Tag = as || 'div'
+  return (
+    <FormItemContext.Provider value={value}>
+      <Tag
+        {...pickDataProps(props)}
+        className={className}
+        style={style}
+        {...value.rootDataAttrs}
+      >
+        {children}
+      </Tag>
+    </FormItemContext.Provider>
+  )
+}
+
+export const FormItemRoot: React.FC<
+  React.PropsWithChildren<IFormItemProps>
+> = ({ children, ...props }) => {
+  const value = useFormItemState(props)
+  const Tag = props.as || 'div'
+  const content = typeof children === 'function' ? children(value) : children
+
+  return (
+    <FormItemContext.Provider value={value}>
+      <Tag
+        {...pickDataProps(props)}
+        style={props.style}
+        className={props.className}
+        {...value.rootDataAttrs}
+        onFocus={() => {
+          if (value.props.feedbackIcon || value.props.inset)
+            value.setActive(true)
+        }}
+        onBlur={() => {
+          if (value.props.feedbackIcon || value.props.inset)
+            value.setActive(false)
+        }}
+      >
+        {content}
+      </Tag>
+    </FormItemContext.Provider>
+  )
+}
+
+type SlotProps = React.PropsWithChildren<PolymorphicProps>
 
 export const FormItemLabel: React.FC<SlotProps> = ({
   as,
   className,
   style,
+  children,
 }) => {
   const ctx = useFormItemContext()
-  if (!ctx) return null
-  return <>{ctx.renderLabel({ as, className, style })}</>
+  const Tag = as || 'label'
+  if (!ctx)
+    return (
+      <Tag className={className} style={style}>
+        {children}
+      </Tag>
+    )
+
+  const showOptional =
+    !ctx.props.asterisk &&
+    ctx.props.requiredMark === 'optional' &&
+    !ctx.props.optionalMarkHidden
+
+  return (
+    <Tag
+      className={className}
+      style={{ ...ctx.labelStyle, ...style }}
+      {...ctx.labelDataAttrs}
+      htmlFor={ctx.props.labelFor as any}
+    >
+      <span data-slot="label-content" ref={ctx.refs.labelContainerRef as any}>
+        <span ref={ctx.refs.labelContentRef as any}>
+          {ctx.props.asterisk && ctx.props.requiredMark === true && (
+            <span data-slot="asterisk">*</span>
+          )}
+          {children ?? ctx.props.label}
+          {showOptional && <span data-slot="optional">optional</span>}
+        </span>
+      </span>
+      {ctx.props.label !== ' ' && (
+        <span data-slot="colon">{ctx.props.colon ? ':' : ''}</span>
+      )}
+      {ctx.props.tooltip &&
+        ctx.props.tooltipLayout === 'icon' &&
+        !ctx.overflow && (
+          <span data-slot="tooltip-icon">{ctx.props.tooltipIcon ?? '?'}</span>
+        )}
+    </Tag>
+  )
 }
 
 export const FormItemControl: React.FC<SlotProps> = ({
@@ -296,91 +339,88 @@ export const FormItemControl: React.FC<SlotProps> = ({
     <Tag
       className={className}
       style={{ ...ctx.controlStyle, ...style }}
-      data-slot="control"
-      data-col={ctx.props.wrapperCol}
+      {...ctx.controlDataAttrs}
     >
       {children}
     </Tag>
   )
 }
 
-const FormItemRoot: React.FC<React.PropsWithChildren<IFormItemProps>> = ({
+export const FormItemHelperText: React.FC<SlotProps> = ({
+  as,
+  className,
+  style,
   children,
-  ...props
 }) => {
-  const ctx = useFormItemState(props)
-  const RootTag = props.as || 'div'
+  const ctx = useFormItemContext()
+  const Tag = as || 'div'
+  if (!ctx)
+    return (
+      <Tag className={className} style={style}>
+        {children}
+      </Tag>
+    )
 
-  const content =
-    typeof children === 'function'
-      ? (children as (context: IFormItemContextValue) => React.ReactNode)(ctx)
-      : children
+  const content = children ?? ctx.props.extra
+  if (!content) return null
+  return (
+    <Tag data-slot="helper-text" className={className} style={style}>
+      {content}
+    </Tag>
+  )
+}
+
+export const FormItemErrorText: React.FC<SlotProps> = ({
+  as,
+  className,
+  style,
+  children,
+}) => {
+  const ctx = useFormItemContext()
+  const Tag = as || 'div'
+  if (!ctx)
+    return (
+      <Tag className={className} style={style}>
+        {children}
+      </Tag>
+    )
+
+  const content = children ?? ctx.props.feedbackText
+  const isInvalid = ctx.props.feedbackStatus === 'error'
+  if (!content || !isInvalid) return null
 
   return (
-    <FormItemContext.Provider value={ctx}>
-      <RootTag
-        {...pickDataProps(props)}
-        style={props.style}
-        className={props.className}
-        {...ctx.rootDataAttrs}
-        onFocus={() => {
-          if (ctx.props.feedbackIcon || ctx.props.inset) {
-            ctx.setActive(true)
-          }
-        }}
-        onBlur={() => {
-          if (ctx.props.feedbackIcon || ctx.props.inset) {
-            ctx.setActive(false)
-          }
-        }}
-      >
-        {ctx.renderLabel()}
-        <div data-slot="control-wrap" data-col={ctx.props.wrapperCol}>
-          <div data-slot="control-inner">
-            {ctx.props.addonBefore && (
-              <div data-slot="addon-before">{ctx.props.addonBefore}</div>
-            )}
-            <div
-              data-slot="control-content"
-              style={ctx.controlStyle}
-              data-has-feedback-icon={ctx.props.feedbackIcon ? '' : undefined}
-            >
-              {content}
-              {ctx.props.feedbackIcon && (
-                <div data-slot="feedback-icon">{ctx.props.feedbackIcon}</div>
-              )}
-            </div>
-            {ctx.props.addonAfter && (
-              <div data-slot="addon-after">{ctx.props.addonAfter}</div>
-            )}
-          </div>
-          {!!ctx.props.feedbackText && ctx.props.feedbackLayout !== 'none' && (
-            <div
-              data-slot="help"
-              data-feedback-status={ctx.props.feedbackStatus}
-              data-feedback-layout={ctx.props.feedbackLayout}
-            >
-              {ctx.props.feedbackText}
-            </div>
-          )}
-          {ctx.props.extra && <div data-slot="extra">{ctx.props.extra}</div>}
-        </div>
-      </RootTag>
-    </FormItemContext.Provider>
+    <Tag
+      data-slot="error-text"
+      data-feedback-status={ctx.props.feedbackStatus}
+      data-feedback-layout={ctx.props.feedbackLayout}
+      className={className}
+      style={style}
+    >
+      {content}
+    </Tag>
   )
 }
 
 export type ComposeFormItem = React.FC<
   React.PropsWithChildren<IFormItemProps>
 > & {
+  Root?: typeof FormItemRoot
+  RootProvider?: typeof FormItemRootProvider
   Label?: typeof FormItemLabel
   Control?: typeof FormItemControl
+  HelperText?: typeof FormItemHelperText
+  ErrorText?: typeof FormItemErrorText
   useContext?: typeof useFormItemContext
 }
 
 export const FormItem: ComposeFormItem = Object.assign(FormItemRoot, {
+  Root: FormItemRoot,
+  RootProvider: FormItemRootProvider,
   Label: FormItemLabel,
   Control: FormItemControl,
+  HelperText: FormItemHelperText,
+  ErrorText: FormItemErrorText,
   useContext: useFormItemContext,
 })
 

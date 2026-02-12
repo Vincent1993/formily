@@ -2,7 +2,18 @@
 
 > The brand-new FormItem component, compared to Antd's FormItem, it supports more functions. At the same time, it is positioned as a pure style component and does not manage the state of the form, so it will be lighter and more convenient for customization
 
-## Headless composition guide (no `BaseItem`)
+## Anatomy
+
+```tsx
+<FormItem.Root>
+  <FormItem.Label />
+  <FormItem.Control />
+  <FormItem.HelperText />
+  <FormItem.ErrorText />
+</FormItem.Root>
+```
+
+## Composition guide (no `BaseItem`)
 
 `FormItem` is now the root component directly, and you can compose it with slots/context:
 
@@ -11,33 +22,32 @@ import { FormItem } from '@formily/antd'
 
 export default () => {
   return (
-    <FormItem
+    <FormItem.Root
       as="section"
       label="Username"
+      feedbackStatus="error"
       feedbackText="Required"
       data-theme="tailwind"
     >
-      {(api) => (
-        <>
-          <FormItem.Label as="div" className="text-sm font-medium" />
-          <div className="mt-2" data-slot="field">
-            <input className="w-full rounded border px-3 py-2" />
-          </div>
-          <div className="text-xs text-gray-500">
-            active: {String(api.active)}
-          </div>
-        </>
-      )}
-    </FormItem>
+      <FormItem.Label as="div" className="text-sm font-medium" />
+      <FormItem.Control className="mt-2">
+        <input className="w-full rounded border px-3 py-2" />
+      </FormItem.Control>
+      <FormItem.HelperText className="text-xs text-gray-500" />
+      <FormItem.ErrorText className="text-xs text-red-500" />
+    </FormItem.Root>
   )
 }
 ```
 
 ### Public composition API
 
-- `FormItem` (root, supports `as`)
+- `FormItem.Root` / `FormItem` (root, supports `as`)
+- `FormItem.RootProvider`
 - `FormItem.Label` (slot, supports `as`)
 - `FormItem.Control` (slot, supports `as`)
+- `FormItem.HelperText`
+- `FormItem.ErrorText`
 - `FormItem.useContext()`
 - `useFormItemState()`
 
@@ -1221,6 +1231,6 @@ export default () => {
 | gridSpan              | number                                                 | Grid layout occupies width                                                                                                                    | -                   |
 | bordered              | boolean                                                | Is there a border                                                                                                                             | -                   |
 
-### FormItem.BaseItem
+### FormItem.Root
 
-Pure style components, the properties are the same as FormItem, and Formily Core does not do state bridging. It is mainly used for scenarios that need to rely on the style layout capabilities of FormItem but do not want to access the Field state.
+Root layout component for composition. Use `FormItem.Root` + slot components (`Label`, `Control`, `HelperText`, `ErrorText`) to assemble the final UI externally.
